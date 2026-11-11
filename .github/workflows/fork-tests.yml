@@ -1,0 +1,50 @@
+# Runs the test suite on Linux and Windows for a branch of this fork.
+# Start it from the Actions tab or with:
+#   gh workflow run fork-tests.yml -R HarpeLm/SongRec -f ref=<branch>
+name: Fork tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to test
+        required: true
+        default: main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Install system packages
+        run: sudo apt update && sudo apt install -y build-essential libasound2-dev libpipewire-0.3-dev libclang-dev libpulse-dev libgtk-4-dev libsoup-3.0-dev libadwaita-1-dev libdbus-1-dev gettext blueprint-compiler ffmpeg rustup
+      - name: Install Rust
+        run: rustup default stable
+      - name: Test with the default features
+        run: cargo test
+      - name: Test the command-line build
+        run: cargo test --no-default-features -F ffmpeg
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-rust mingw-w64-ucrt-x86_64-blueprint-compiler mingw-w64-ucrt-x86_64-gettext-runtime mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-libadwaita mingw-w64-ucrt-x86_64-adwaita-icon-theme mingw-w64-ucrt-x86_64-glib2 mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-dbus mingw-w64-ucrt-x86_64-openssl mingw-w64-ucrt-x86_64-libsoup3
+      - name: Test with the Windows release features
+        run: GETTEXT_SYSTEM=1 cargo test --no-default-features -F gui,ffmpeg
+      - name: Test the command-line build
+        run: GETTEXT_SYSTEM=1 cargo test --no-default-features -F ffmpeg
